@@ -103,7 +103,7 @@ fi
 # -----------------------------------------------------------------------------
 # 4. 发送结果到收件箱
 # -----------------------------------------------------------------------------
-SEND_RESULT=$(/Users/alanli/.local/bin/clawteam inbox send "$TEAM_NAME" "$RECIPIENT" "$RESULT" 2>&1)
+SEND_RESULT=$($(command -v clawteam 2>/dev/null || echo "/Users/alanli/.local/bin/clawteam") inbox send "$TEAM_NAME" "$RECIPIENT" "$RESULT" 2>&1)
 echo "发送结果: $SEND_RESULT" >> "$LOG_FILE"
 
 # 5. 干净退出

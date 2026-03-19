@@ -137,7 +137,10 @@ class WorkspaceManager:
             # 不在白名单就删除
             if not keep:
                 try:
-                    if item.is_file() or item.is_symlink():
+                    if item.is_symlink():
+                        # 删 symlink 本身，不解引用（不删真实目标）
+                        item.unlink()
+                    elif item.is_file():
                         item.unlink()
                     elif item.is_dir():
                         shutil.rmtree(item)
