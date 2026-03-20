@@ -1791,6 +1791,9 @@ def spawn_agent(
             cwd = ws_info.worktree_path
             ws_branch = ws_info.branch_name
             console.print(f"[dim]Workspace: {cwd} (branch: {ws_branch})[/dim]")
+    elif repo:
+        import os as _os_repo
+        cwd = _os_repo.path.abspath(repo)
 
     # Build prompt: identity + task + clawteam coordination guide
     prompt = None
