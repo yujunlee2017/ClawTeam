@@ -78,6 +78,8 @@ def build_agent_prompt(
         "## Coordination Protocol\n",
         f"- Use `clawteam task list {team_name} --owner {agent_name}` to see your tasks.",
         f"- Starting a task: `clawteam task update {team_name} <task-id> --status in_progress`",
+        "- Before marking a task completed, commit your changes in this worktree with git.",
+        '- Use a clear commit message, e.g. `git add -A && git commit -m "Implement <task summary>"`.',
         f"- Finishing a task: `clawteam task update {team_name} <task-id> --status completed`",
         "- When you finish all tasks, send a summary to the leader:",
         f'  `clawteam inbox send {team_name} {leader_name} "All tasks completed. <brief summary>"`',

@@ -27,6 +27,8 @@ class TestBuildAgentPrompt:
         )
         assert "clawteam task list" in prompt
         assert "clawteam task update" in prompt
+        assert "commit your changes" in prompt
+        assert "git add -A && git commit" in prompt
         assert "clawteam inbox send" in prompt
         assert "clawteam cost report" in prompt
         assert "clawteam session save" in prompt
