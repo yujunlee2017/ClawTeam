@@ -126,38 +126,95 @@ const S = {
 
   // Members
   membersGrid: {
-    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: 1, background: 'var(--border)',
+    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+    gap: 12,
   },
-  memberCard: {
-    background: 'var(--surface)', padding: '14px 20px',
+  memberCard: (selected) => ({
+    appearance: 'none',
+    width: '100%',
+    textAlign: 'left',
+    background: selected ? 'rgba(10,132,255,0.08)' : 'var(--surface2)',
+    border: selected ? '1px solid rgba(10,132,255,0.45)' : '1px solid var(--border)',
+    borderRadius: 'var(--radius)',
+    padding: '14px 16px',
+    cursor: 'pointer',
+    transition: 'border-color 0.15s, background 0.15s, transform 0.15s',
+  }),
+  memberCardTop: {
+    display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+    gap: 12,
   },
   memberName: {
     fontSize: 14, fontWeight: 600, color: 'var(--text)',
   },
-  memberType: {
-    fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2,
+  memberUser: {
+    fontSize: 12, color: 'var(--purple)', marginTop: 2,
   },
-  inboxBadge: (count) => ({
-    display: 'inline-block', marginTop: 6,
+  memberType: {
+    fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4,
+  },
+  memberAction: (selected) => ({
+    fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    color: selected ? 'var(--blue)' : 'var(--text-tertiary)',
+  }),
+  inboxBadge: (count, selected) => ({
+    display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10,
     fontSize: 11, fontWeight: 500,
     padding: '2px 8px', borderRadius: 10,
-    background: count > 0 ? 'rgba(255,69,58,0.15)' : 'var(--surface3)',
+    background: count > 0
+      ? (selected ? 'rgba(255,69,58,0.2)' : 'rgba(255,69,58,0.15)')
+      : 'var(--surface3)',
     color: count > 0 ? 'var(--red)' : 'var(--text-tertiary)',
   }),
+  sectionSubtext: {
+    fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4,
+  },
 
   // Messages
   msgList: {
     maxHeight: 360, overflowY: 'auto',
   },
-  msgItem: {
+  msgControls: {
+    display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+  },
+  filterGroup: {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    background: 'var(--surface2)', border: '1px solid var(--border)',
+    borderRadius: 999, padding: 4,
+  },
+  filterButton: (active, disabled) => ({
+    appearance: 'none',
+    border: 'none',
+    background: active ? 'var(--accent)' : 'transparent',
+    color: active ? 'var(--bg)' : 'var(--text-secondary)',
+    borderRadius: 999,
+    padding: '5px 10px',
+    fontSize: 11,
+    fontWeight: 600,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.35 : 1,
+  }),
+  clearFilter: {
+    appearance: 'none',
+    border: '1px solid var(--border)',
+    background: 'var(--surface2)',
+    color: 'var(--text-secondary)',
+    borderRadius: 999,
+    padding: '5px 10px',
+    fontSize: 11,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  msgItem: (highlighted) => ({
     padding: '12px 20px',
     borderBottom: '1px solid var(--border)',
     transition: 'background 0.15s',
-  },
+    background: highlighted ? 'rgba(10,132,255,0.06)' : 'transparent',
+  }),
   msgMeta: {
-    display: 'flex', alignItems: 'center', gap: 8,
-    fontSize: 12, marginBottom: 4,
+    display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+    fontSize: 12, marginBottom: 6,
   },
   msgTag: {
     fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
@@ -165,8 +222,37 @@ const S = {
     padding: '2px 6px', borderRadius: 4,
     background: 'var(--surface3)', color: 'var(--text-tertiary)',
   },
-  msgFrom: { color: 'var(--text)', fontWeight: 500 },
-  msgTo: { color: 'var(--text-tertiary)' },
+  msgDirection: (kind) => {
+    const palette = {
+      direct: ['rgba(10,132,255,0.14)', 'var(--blue)'],
+      sent: ['rgba(10,132,255,0.14)', 'var(--blue)'],
+      received: ['rgba(48,209,88,0.14)', 'var(--green)'],
+      broadcast: ['rgba(191,90,242,0.14)', 'var(--purple)'],
+    };
+    const [bg, color] = palette[kind] || palette.direct;
+    return {
+      fontSize: 10,
+      fontWeight: 600,
+      textTransform: 'uppercase',
+      letterSpacing: '0.04em',
+      padding: '2px 6px',
+      borderRadius: 4,
+      background: bg,
+      color,
+    };
+  },
+  msgFlow: {
+    display: 'flex', alignItems: 'center', gap: 8, minWidth: 0,
+    color: 'var(--text-secondary)',
+  },
+  msgParty: (selected) => ({
+    color: selected ? 'var(--text)' : 'var(--text-secondary)',
+    fontWeight: selected ? 600 : 500,
+  }),
+  msgArrow: {
+    color: 'var(--text-tertiary)',
+    fontSize: 11,
+  },
   msgTime: { color: 'var(--text-tertiary)', marginLeft: 'auto', fontSize: 11 },
   msgContent: {
     fontSize: 13, color: 'var(--text-secondary)',
@@ -258,55 +344,163 @@ function SummaryCards({ summary }) {
   );
 }
 
-function Members({ members }) {
+function directionMeta(msg, selectedMemberKey) {
+  if (selectedMemberKey) {
+    if (msg.fromKey === selectedMemberKey && msg.toKey === selectedMemberKey) {
+      return { tone: 'sent', label: 'Self' };
+    }
+    if (msg.fromKey === selectedMemberKey) {
+      return { tone: 'sent', label: 'Sent' };
+    }
+    if (msg.toKey === selectedMemberKey) {
+      return { tone: 'received', label: 'Received' };
+    }
+  }
+  if (msg.isBroadcast) {
+    return { tone: 'broadcast', label: 'Broadcast' };
+  }
+  return { tone: 'direct', label: 'Direct' };
+}
+
+function formatMessageTime(timestamp) {
+  const time = (timestamp || '').slice(11, 19);
+  const date = (timestamp || '').slice(5, 10);
+  return [date, time].filter(Boolean).join(' ');
+}
+
+function Members({ members, selectedMemberKey, onSelectMember }) {
   return (
     <div style={S.section}>
       <div style={S.sectionHeader}>
-        <span style={S.sectionTitle}>Members</span>
+        <div>
+          <div style={S.sectionTitle}>Members</div>
+          <div style={S.sectionSubtext}>Click an inbox to inspect that member&apos;s received and sent history.</div>
+        </div>
         <span style={S.sectionBadge}>{members.length}</span>
       </div>
       <div style={S.membersGrid}>
         {members.map(m => (
-          <div key={m.name} style={S.memberCard}>
-            <div style={S.memberName}>{m.name}</div>
-            {m.user && <div style={{fontSize: 12, color: 'var(--purple)'}}>{m.user}</div>}
-            <div style={S.memberType}>{m.agentType}</div>
-            <span style={S.inboxBadge(m.inboxCount)}>
-              {m.inboxCount > 0 ? `${m.inboxCount} message${m.inboxCount > 1 ? 's' : ''}` : 'inbox empty'}
+          <button
+            key={m.memberKey || m.name}
+            type="button"
+            style={S.memberCard(selectedMemberKey === m.memberKey)}
+            aria-pressed={selectedMemberKey === m.memberKey}
+            onClick={() => onSelectMember(m.memberKey)}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = selectedMemberKey === m.memberKey ? 'rgba(10,132,255,0.45)' : 'rgba(255,255,255,0.08)'}
+          >
+            <div style={S.memberCardTop}>
+              <div>
+                <div style={S.memberName}>{m.name}</div>
+                {m.user && <div style={S.memberUser}>{m.user}</div>}
+                <div style={S.memberType}>{m.agentType}</div>
+              </div>
+              <span style={S.memberAction(selectedMemberKey === m.memberKey)}>
+                {selectedMemberKey === m.memberKey ? 'Viewing' : 'Open inbox'}
+              </span>
+            </div>
+            <span style={S.inboxBadge(m.inboxCount, selectedMemberKey === m.memberKey)}>
+              {m.inboxCount > 0 ? `${m.inboxCount} new` : 'Inbox empty'}
             </span>
-          </div>
+          </button>
         ))}
       </div>
     </div>
   );
 }
 
-function Messages({ messages }) {
+function Messages({ messages, members, selectedMemberKey, selectedMode, onChangeMode, onClearMember }) {
+  const selectedMember = useMemo(
+    () => members.find(member => member.memberKey === selectedMemberKey) || null,
+    [members, selectedMemberKey]
+  );
+  const modeText = {
+    all: 'all messages',
+    received: 'received messages',
+    sent: 'sent messages',
+  };
+
   const sorted = useMemo(() => {
     return [...messages].sort((a, b) =>
       (b.timestamp || '').localeCompare(a.timestamp || '')
     );
   }, [messages]);
 
+  const filtered = useMemo(() => {
+    return sorted.filter(msg => {
+      const touchesSelected = !selectedMemberKey || msg.fromKey === selectedMemberKey || msg.toKey === selectedMemberKey;
+      if (!touchesSelected) return false;
+      if (!selectedMemberKey || selectedMode === 'all') return true;
+      if (selectedMode === 'received') return msg.toKey === selectedMemberKey;
+      if (selectedMode === 'sent') return msg.fromKey === selectedMemberKey;
+      return true;
+    });
+  }, [sorted, selectedMemberKey, selectedMode]);
+
+  const modes = [
+    { key: 'all', label: 'All' },
+    { key: 'received', label: 'Received' },
+    { key: 'sent', label: 'Sent' },
+  ];
+
   return (
     <div style={S.section}>
       <div style={S.sectionHeader}>
-        <span style={S.sectionTitle}>Messages</span>
-        <span style={S.sectionBadge}>{messages.length}</span>
+        <div>
+          <div style={S.sectionTitle}>Message History</div>
+          <div style={S.sectionSubtext}>
+            {selectedMember
+              ? `Viewing ${selectedMember.name}${selectedMember.user ? ` (${selectedMember.user})` : ''} · ${modeText[selectedMode] || selectedMode}.`
+              : 'Team-wide event log. Select a member inbox to switch perspective.'}
+          </div>
+        </div>
+        <div style={S.msgControls}>
+          {selectedMember && (
+            <button type="button" style={S.clearFilter} onClick={onClearMember}>
+              Clear member
+            </button>
+          )}
+          <div style={S.filterGroup}>
+            {modes.map(mode => {
+              const disabled = !selectedMember && mode.key !== 'all';
+              return (
+                <button
+                  key={mode.key}
+                  type="button"
+                  style={S.filterButton(selectedMode === mode.key, disabled)}
+                  aria-pressed={selectedMode === mode.key}
+                  disabled={disabled}
+                  onClick={() => !disabled && onChangeMode(mode.key)}
+                >
+                  {mode.label}
+                </button>
+              );
+            })}
+          </div>
+          <span style={S.sectionBadge}>{filtered.length}</span>
+        </div>
       </div>
       <div style={S.msgList}>
-        {sorted.length === 0 ? (
-          <div style={S.msgEmpty}>No pending messages</div>
-        ) : sorted.map((msg, i) => {
-          const time = (msg.timestamp || '').slice(11, 19);
-          const date = (msg.timestamp || '').slice(5, 10);
+        {filtered.length === 0 ? (
+          <div style={S.msgEmpty}>
+            {selectedMember ? 'No message history for this view' : 'No message history yet'}
+          </div>
+        ) : filtered.map((msg, i) => {
+          const direction = directionMeta(msg, selectedMemberKey);
+          const fromLabel = msg.fromLabel || msg.from || 'system';
+          const toLabel = msg.toLabel || msg.to || 'everyone';
+          const highlightsSelected = Boolean(selectedMemberKey && (msg.fromKey === selectedMemberKey || msg.toKey === selectedMemberKey));
           return (
-            <div key={i} style={S.msgItem}>
+            <div key={`${msg.requestId || i}-${msg.timestamp || i}`} style={S.msgItem(highlightsSelected)}>
               <div style={S.msgMeta}>
                 <span style={S.msgTag}>{msg.type || 'message'}</span>
-                <span style={S.msgFrom}>{msg.from || ''}</span>
-                <span style={S.msgTo}>{msg.to || ''}</span>
-                <span style={S.msgTime}>{date} {time}</span>
+                <span style={S.msgDirection(direction.tone)}>{direction.label}</span>
+                <div style={S.msgFlow}>
+                  <span style={S.msgParty(msg.fromKey === selectedMemberKey)}>{fromLabel}</span>
+                  <span style={S.msgArrow}>{msg.isBroadcast ? '↠' : '→'}</span>
+                  <span style={S.msgParty(msg.toKey === selectedMemberKey)}>{toLabel}</span>
+                </div>
+                <span style={S.msgTime}>{formatMessageTime(msg.timestamp)}</span>
               </div>
               <div style={S.msgContent}>{msg.content || ''}</div>
             </div>
@@ -365,6 +559,26 @@ function Kanban({ tasks }) {
 
 function Dashboard({ data }) {
   const { team, members = [], tasks = {}, taskSummary = {}, messages = [] } = data;
+  const [selectedMemberKey, setSelectedMemberKey] = useState('');
+  const [selectedMode, setSelectedMode] = useState('all');
+
+  useEffect(() => {
+    setSelectedMemberKey('');
+    setSelectedMode('all');
+  }, [team.name]);
+
+  useEffect(() => {
+    if (selectedMemberKey && !members.some(member => member.memberKey === selectedMemberKey)) {
+      setSelectedMemberKey('');
+      setSelectedMode('all');
+    }
+  }, [members, selectedMemberKey]);
+
+  function handleSelectMember(memberKey) {
+    setSelectedMemberKey(current => current === memberKey ? '' : memberKey);
+    setSelectedMode('all');
+  }
+
   return (
     <div style={S.container}>
       <div style={S.teamInfo}>
@@ -375,8 +589,18 @@ function Dashboard({ data }) {
         </span>
       </div>
       <SummaryCards summary={taskSummary} />
-      <Members members={members} />
-      <Messages messages={messages} />
+      <Members members={members} selectedMemberKey={selectedMemberKey} onSelectMember={handleSelectMember} />
+      <Messages
+        messages={messages}
+        members={members}
+        selectedMemberKey={selectedMemberKey}
+        selectedMode={selectedMode}
+        onChangeMode={setSelectedMode}
+        onClearMember={() => {
+          setSelectedMemberKey('');
+          setSelectedMode('all');
+        }}
+      />
       <Kanban tasks={tasks} />
     </div>
   );

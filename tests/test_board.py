@@ -123,6 +123,56 @@ def test_collect_team_preserves_conflicts_field(monkeypatch, tmp_path: Path):
     assert "conflicts" in data
 
 
+def test_collect_team_exposes_member_inbox_identity(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("CLAWTEAM_DATA_DIR", str(tmp_path))
+    TeamManager.create_team(
+        name="demo",
+        leader_name="leader",
+        leader_id="leader001",
+        description="demo team",
+    )
+    TeamManager.add_member("demo", "worker", "worker001", user="alice")
+
+    data = BoardCollector().collect_team("demo")
+
+    worker = next(member for member in data["members"] if member["name"] == "worker")
+    assert worker["memberKey"] == "alice_worker"
+    assert worker["inboxName"] == "alice_worker"
+
+
+def test_collect_team_normalizes_message_participants(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("CLAWTEAM_DATA_DIR", str(tmp_path))
+    TeamManager.create_team(
+        name="demo",
+        leader_name="leader",
+        leader_id="leader001",
+        description="demo team",
+    )
+    TeamManager.add_member("demo", "worker", "worker001", user="alice")
+    mailbox = MailboxManager("demo")
+    mailbox.send(from_agent="leader", to="worker", content="hello")
+    mailbox.broadcast(from_agent="leader", content="broadcast")
+
+    data = BoardCollector().collect_team("demo")
+
+    direct = next(msg for msg in data["messages"] if msg.get("content") == "hello")
+    assert direct["fromKey"] == "leader"
+    assert direct["fromLabel"] == "leader"
+    assert direct["toKey"] == "alice_worker"
+    assert direct["toLabel"] == "worker"
+    assert direct["isBroadcast"] is False
+
+    broadcast = next(
+        msg
+        for msg in data["messages"]
+        if msg.get("content") == "broadcast" and msg.get("to") == "alice_worker"
+    )
+    assert broadcast["fromKey"] == "leader"
+    assert broadcast["toKey"] == "alice_worker"
+    assert broadcast["toLabel"] == "worker"
+    assert broadcast["isBroadcast"] is True
+
+
 def test_collect_overview_preserves_broken_team_fallback(monkeypatch):
     def fake_discover():
         return [

@@ -12,6 +12,27 @@ from clawteam.team.tasks import TaskStore
 class BoardCollector:
     """Aggregates team/task/inbox data into plain dicts."""
 
+    @staticmethod
+    def _member_alias_index(config) -> dict[str, dict]:
+        """Map known member identifiers to a canonical display payload."""
+        unique_names: dict[str, list[dict]] = {}
+        aliases: dict[str, dict] = {}
+        for member in config.members:
+            inbox_name = TeamManager.inbox_name_for(member)
+            entry = {
+                "memberKey": inbox_name,
+                "name": member.name,
+                "user": member.user,
+            }
+            aliases[inbox_name] = entry
+            unique_names.setdefault(member.name, []).append(entry)
+
+        # Only map bare logical names when they are unambiguous.
+        for logical_name, entries in unique_names.items():
+            if len(entries) == 1:
+                aliases[logical_name] = entries[0]
+        return aliases
+
     def collect_team_summary(self, team_name: str) -> dict:
         """Collect only the lightweight summary needed for overview screens."""
         config = TeamManager.get_team(team_name)
@@ -51,6 +72,7 @@ class BoardCollector:
 
         mailbox = MailboxManager(team_name)
         store = TaskStore(team_name)
+        member_aliases = self._member_alias_index(config)
 
         # Members with inbox counts
         members = []
@@ -61,6 +83,8 @@ class BoardCollector:
                 "agentId": m.agent_id,
                 "agentType": m.agent_type,
                 "joinedAt": m.joined_at,
+                "memberKey": inbox_name,
+                "inboxName": inbox_name,
                 "inboxCount": mailbox.peek_count(inbox_name),
             }
             if m.user:
@@ -96,9 +120,23 @@ class BoardCollector:
         try:
             events = mailbox.get_event_log(limit=200)
             for msg in events:
-                all_messages.append(
-                    json.loads(msg.model_dump_json(by_alias=True, exclude_none=True))
-                )
+                payload = json.loads(msg.model_dump_json(by_alias=True, exclude_none=True))
+                from_info = member_aliases.get(payload.get("from") or "")
+                to_info = member_aliases.get(payload.get("to") or "")
+                if from_info:
+                    payload["fromKey"] = from_info["memberKey"]
+                    payload["fromLabel"] = from_info["name"]
+                elif payload.get("from"):
+                    payload["fromKey"] = payload["from"]
+                    payload["fromLabel"] = payload["from"]
+                if to_info:
+                    payload["toKey"] = to_info["memberKey"]
+                    payload["toLabel"] = to_info["name"]
+                elif payload.get("to"):
+                    payload["toKey"] = payload["to"]
+                    payload["toLabel"] = payload["to"]
+                payload["isBroadcast"] = payload.get("type") == "broadcast" or not payload.get("to")
+                all_messages.append(payload)
         except Exception:
             pass
 
