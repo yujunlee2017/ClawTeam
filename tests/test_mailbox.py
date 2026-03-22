@@ -2,6 +2,9 @@
 
 import fcntl
 import json
+import os
+import socket
+import time
 from pathlib import Path
 
 from clawteam.team.mailbox import MailboxManager
@@ -25,6 +28,12 @@ def _inbox_path(team_name: str, agent_name: str) -> Path:
 
 def _dead_letter_root(team_name: str, agent_name: str) -> Path:
     return get_data_dir() / "teams" / team_name / "dead_letters" / agent_name
+
+
+def _peer_path(team_name: str, agent_name: str) -> Path:
+    peer = get_data_dir() / "teams" / team_name / "peers" / f"{agent_name}.json"
+    peer.parent.mkdir(parents=True, exist_ok=True)
+    return peer
 
 
 class TestSendReceive:
@@ -398,6 +407,78 @@ class TestFileTransport:
 
         assert transport.fetch("bob", limit=3, consume=True) == [b"raw-message"]
         assert seen == {"calls": 1, "acks": 1}
+
+        transport.close()
+
+
+class TestP2PLease:
+    def test_remote_peer_addr_uses_fresh_lease_instead_of_local_pid(self, team_name):
+        from clawteam.transport.p2p import P2PTransport
+
+        transport = P2PTransport(team_name)
+        now_ms = int(time.time() * 1000)
+        _peer_path(team_name, "bob").write_text(
+            json.dumps(
+                {
+                    "host": "remote-host",
+                    "port": 43123,
+                    "pid": 999999999,
+                    "heartbeatAtMs": now_ms,
+                    "leaseExpiresAtMs": now_ms + 5000,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        assert transport._get_peer_addr("bob") == "tcp://remote-host:43123"
+
+        transport.close()
+
+    def test_remote_peer_addr_rejects_stale_lease_even_if_local_pid_is_alive(self, team_name):
+        from clawteam.transport.p2p import P2PTransport
+
+        transport = P2PTransport(team_name)
+        now_ms = int(time.time() * 1000)
+        peer_file = _peer_path(team_name, "bob")
+        peer_file.write_text(
+            json.dumps(
+                {
+                    "host": "remote-host",
+                    "port": 43123,
+                    "pid": os.getpid(),
+                    "heartbeatAtMs": now_ms - 6000,
+                    "leaseExpiresAtMs": now_ms - 1000,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        assert transport._get_peer_addr("bob") is None
+        assert not peer_file.exists()
+
+        transport.close()
+
+    def test_same_host_peer_addr_keeps_live_pid_even_when_lease_is_stale(self, team_name):
+        from clawteam.transport.p2p import P2PTransport
+
+        transport = P2PTransport(team_name)
+        now_ms = int(time.time() * 1000)
+        peer_file = _peer_path(team_name, "bob")
+        peer_file.write_text(
+            json.dumps(
+                {
+                    "host": socket.gethostname(),
+                    "port": 43123,
+                    "pid": os.getpid(),
+                    "heartbeatAtMs": now_ms - 6000,
+                    "leaseExpiresAtMs": now_ms - 1000,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        assert transport._get_peer_addr("bob") == f"tcp://{socket.gethostname()}:43123"
+        assert peer_file.exists()
 
         transport.close()
 
